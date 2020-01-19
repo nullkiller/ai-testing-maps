@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace Vcmi.AutoTests.Driver
 {
@@ -130,19 +131,25 @@ namespace Vcmi.AutoTests.Driver
                 UseShellExecute = true
             };
 
-            Process p = Process.Start(ps);
-
-            p.WaitForExit((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
-
-            if (!p.HasExited)
+            for (int i = 0; i < 3; i++)
             {
-                p.Kill();
-            }
+                Process p = Process.Start(ps);
 
-            foreach (Process proc in Process.GetProcessesByName("VCMI_Server"))
-            {
-                proc.Kill();
-                proc.WaitForExit();
+                p.WaitForExit((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+
+                if (!p.HasExited)
+                {
+                    p.Kill();
+                }
+
+                foreach (Process proc in Process.GetProcessesByName("VCMI_Server"))
+                {
+                    proc.Kill();
+                    proc.WaitForExit();
+                }
+
+                if (p.ExitCode == 0)
+                    break;
             }
 
             var success = HasWon();
@@ -167,27 +174,38 @@ namespace Vcmi.AutoTests.Driver
 
         private bool HasWon()
         {
-            using (FileStream log = new FileStream(Path.Combine(Configuration.SavesDir, "VCMI_Client_log.txt"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            for (int i = 0; i < 10; i++)
             {
-                log.Seek(-10000, SeekOrigin.End);
-
-                var playerString = $"{(int)trackingPlayer} ({trackingPlayer.ToString().ToLowerInvariant()})";
-
-                using (var reader = new StreamReader(log))
+                Thread.Sleep(100);
+                try
                 {
-                    while (!reader.EndOfStream)
+                    using (FileStream log = new FileStream(Path.Combine(Configuration.SavesDir, "VCMI_Client_log.txt"), FileMode.Open, FileAccess.Read, FileShare.None))
                     {
-                        var line = reader.ReadLine();
+                        log.Seek(-10000, SeekOrigin.End);
 
-                        if (string.IsNullOrEmpty(line))
-                            continue;
+                        var playerString = $"{(int)trackingPlayer} ({trackingPlayer.ToString().ToLowerInvariant()})";
 
-                        if (line.EndsWith($"VCAI: Player {playerString} lost. It's me. What a disappointment! :("))
-                            return false;
+                        using (var reader = new StreamReader(log))
+                        {
+                            while (!reader.EndOfStream)
+                            {
+                                var line = reader.ReadLine();
 
-                        if (line.EndsWith($"VCAI: Player {playerString} won. I won! Incredible!"))
-                            return true;
+                                if (string.IsNullOrEmpty(line))
+                                    continue;
+
+                                if (line.EndsWith($"VCAI: Player {playerString} lost. It's me. What a disappointment! :("))
+                                    return false;
+
+                                if (line.EndsWith($"VCAI: Player {playerString} won. I won! Incredible!"))
+                                    return true;
+                            }
+                        }
                     }
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
                 }
             }
 
