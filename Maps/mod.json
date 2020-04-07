@@ -18,7 +18,7 @@
 			{"type" : "dir",  "path" : "/HeroChain"},
 			{"type" : "dir",  "path" : "/Priority"},
 			{"type" : "dir",  "path" : "/GatherArmy"},
-			{"type" : "dir",  "path" : "/SXX"},
+			{"type" : "dir",  "path" : "/Clusterization"},
 			{"type" : "dir",  "path" : "/Startup"}
 		]
 	}
