@@ -1,0 +1,1 @@
+rmdir ..\bin\RelWithDebInfo\Mods\Maps /S/Q

@@ -1,1 +1,1 @@
-xcopy Maps\* ..\bin\RelWithDebInfo\Mods\Maps /S /I /Y /Q
+xcopy content\Maps\* ..\bin\RelWithDebInfo\Mods\Maps /S /I /Y /Q

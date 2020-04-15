@@ -1,10 +1,12 @@
-﻿using System;
+﻿using CommandLine;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace Vcmi.AutoTests.Driver
 {
@@ -12,56 +14,91 @@ namespace Vcmi.AutoTests.Driver
     {
         static void Main(string[] args)
         {
-            var testPack = new TestPack(Path.Combine(Configuration.VcmiRootDir, Configuration.MapsModBasePath));
-            var maps = testPack.GetMaps();
-
-            Console.WriteLine("{0} maps discovered.", maps.Count);
-
-            if(Directory.Exists(Configuration.ResultDirectory))
+            new Parser(s => s.CaseSensitive = false).ParseArguments<Configuration>(args).WithParsed(configuration =>
             {
-                Directory.Delete(Configuration.ResultDirectory, true);
-            }
+                Console.WriteLine("VCMI automatic test driver.");
 
-            Directory.CreateDirectory(Configuration.ResultDirectory);
-            Directory.CreateDirectory(Configuration.ResultTempDirectory);
+                var testPack = new TestPack(configuration);
+                var maps = testPack.GetMaps();
 
-            File.WriteAllText(Configuration.ResultFileName, "<testrun>" + Environment.NewLine);
+                Console.WriteLine("{0} maps discovered.", maps.Count);
 
-            foreach (var map in maps)
-            {
-                map.Run();
-            }
+                if (Directory.Exists(configuration.ResultDirectory))
+                {
+                    Directory.Delete(configuration.ResultDirectory, true);
+                }
 
-            File.AppendAllText(Configuration.ResultFileName, "</testrun>");
+                Directory.CreateDirectory(configuration.ResultDirectory);
+                Directory.CreateDirectory(configuration.ResultTempDirectory);
+
+                string resultsFileFullName = configuration.MakeResultsPath(configuration.ResultFileName);
+                File.WriteAllText(resultsFileFullName, "<testrun>" + Environment.NewLine);
+
+                foreach (var map in maps)
+                {
+                    map.Run();
+                }
+
+                File.AppendAllText(resultsFileFullName, "</testrun>");
+            });
         }
     }
 
-    class Configuration
+    public class Configuration
     {
-        public const string VcmiRootDir = "d:/vcmi/build/bin/RelWithDebInfo";
-        public const string SavesDir = "C:/Users/andri/Documents/My Games/vcmi";
-        public const string ResultFileName = "result/result.xml";
-        public const string MapsModBasePath = "Mods/Maps";
-        public const string ResultTempDirectory = "result/current";
-        public const string ResultDirectory = "result";
-        public static readonly string[] TestArtifacts = {
+        [Option(Required = true, HelpText = "Path to vcmi_client.exe")]
+        public string VcmiRootDir { get; set; } = "d:/vcmi/build/bin/RelWithDebInfo";
+
+        [Option(Required = true, HelpText = "Path to vcmi logs")]
+        public string SavesDir { get; set; } = "C:/Users/andri/Documents/My Games/vcmi";
+
+        [Option(Required = false, HelpText = "Output file name")]
+        public string ResultFileName { get; set; } = "result.xml";
+
+        [Option(Required = false, HelpText = "Path to maps relative vcmi root dir")]
+        public string MapsModBasePath { get; set; } = "Mods/Maps";
+
+        [Option(Required = false)]
+        public string ResultDirectory { get; set; } = "result";
+
+        [Option(Required = false)]
+        public string VcmiClientName { get; set; } = "VCMI_client.exe";
+
+        [Option(Required = false)]
+        public string VcmiServerName { get; set; } = "VCMI_server.exe";
+        
+        public string[] TestArtifacts { get; set; } = {
             "VCMI_Client_log.txt",
             "VCMI_Server_log.txt"
         };
 
-        public static string MakeMapPath(string relativePath)
+        public string ResultTempDirectory => MakeResultsPath("current");
+
+        public string MakeMapPath(string relativePath)
         {
             return Path.Combine(VcmiRootDir, MapsModBasePath, relativePath);
+        }
+
+        public string MakeResultsPath(string relativePath)
+        {
+            return Path.Combine(ResultDirectory, relativePath);
+        }
+
+        public string MakeVcmiPath(string path)
+        {
+            return Path.Combine(VcmiRootDir, path);
         }
     }
 
     class TestPack
     {
         string path;
+        private Configuration configuration;
 
-        public TestPack(string rootDirectory)
+        public TestPack(Configuration configuration)
         {
-            path = rootDirectory;
+            this.configuration = configuration;
+            this.path = Path.Combine(configuration.VcmiRootDir, configuration.MapsModBasePath);
         }
 
         public List<TestMap> GetMaps()
@@ -72,7 +109,7 @@ namespace Vcmi.AutoTests.Driver
                 "*.h3m",
                 SearchOption.AllDirectories);
 
-            return maps.Select(path => new TestMap(path)).ToList();
+            return maps.Select(path => new TestMap(path, configuration)).ToList();
         }
     }
 
@@ -90,11 +127,13 @@ namespace Vcmi.AutoTests.Driver
         private string mapName;
         private string description;
         private string path;
+        private readonly Configuration configuration;
         private PlayerColor trackingPlayer;
 
-        public TestMap(string path)
+        public TestMap(string path, Configuration configuration)
         {
             this.path = path;
+            this.configuration = configuration;
         }
 
         public void Run()
@@ -124,70 +163,87 @@ namespace Vcmi.AutoTests.Driver
 
             ProcessStartInfo ps = new ProcessStartInfo
             {
-                FileName = Path.Combine(Configuration.VcmiRootDir, "VCMI_client.exe"),
+                FileName = configuration.MakeVcmiPath(configuration.VcmiClientName),
                 Arguments = $@"--testmap ""MAPS/{Path.GetFileNameWithoutExtension(path)}"" --headless",
-                WorkingDirectory = Configuration.VcmiRootDir,
+                WorkingDirectory = configuration.VcmiRootDir,
                 UseShellExecute = true
             };
 
-            Process p = Process.Start(ps);
-
-            p.WaitForExit((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
-
-            if (!p.HasExited)
+            for (int i = 0; i < 3; i++)
             {
-                p.Kill();
-            }
+                Process p = Process.Start(ps);
 
-            foreach (Process proc in Process.GetProcessesByName("VCMI_Server"))
-            {
-                proc.Kill();
-                proc.WaitForExit();
+                p.WaitForExit((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+
+                if (!p.HasExited)
+                {
+                    p.Kill();
+                }
+
+                foreach (Process proc in Process.GetProcessesByName("VCMI_Server"))
+                {
+                    proc.Kill();
+                    proc.WaitForExit();
+                }
+
+                if (p.ExitCode == 0)
+                    break;
             }
 
             var success = HasWon();
 
             if (!success)
             {
-                foreach (var artifact in Configuration.TestArtifacts)
+                foreach (var artifact in configuration.TestArtifacts)
                 {
                     File.Copy(
-                        Path.Combine(Configuration.SavesDir, artifact), 
-                        Path.Combine(Configuration.ResultTempDirectory, artifact), 
+                        Path.Combine(configuration.SavesDir, artifact), 
+                        Path.Combine(configuration.ResultTempDirectory, artifact), 
                         overwrite: true);
                 }
 
-                ZipFile.CreateFromDirectory(Configuration.ResultTempDirectory, Path.Combine(Configuration.ResultDirectory, mapName + ".zip"));
+                ZipFile.CreateFromDirectory(configuration.ResultTempDirectory, Path.Combine(configuration.ResultDirectory, mapName + ".zip"));
             }
 
             File.AppendAllText(
-                Configuration.ResultFileName,
+                configuration.MakeResultsPath(configuration.ResultFileName),
                 $@"  <test name=""{mapName}"" result=""{success}"" />{Environment.NewLine}");
         }
 
         private bool HasWon()
         {
-            using (FileStream log = new FileStream(Path.Combine(Configuration.SavesDir, "VCMI_Client_log.txt"), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            for (int i = 0; i < 10; i++)
             {
-                log.Seek(-10000, SeekOrigin.End);
-
-                var playerString = $"{(int)trackingPlayer} ({trackingPlayer.ToString().ToLowerInvariant()})";
-
-                using (var reader = new StreamReader(log))
+                Thread.Sleep(100);
+                try
                 {
-                    while (!reader.EndOfStream)
+                    using (FileStream log = new FileStream(Path.Combine(configuration.SavesDir, "VCMI_Client_log.txt"), FileMode.Open, FileAccess.Read, FileShare.None))
                     {
-                        var line = reader.ReadLine();
+                        log.Seek(-10000, SeekOrigin.End);
 
-                        if (string.IsNullOrEmpty(line))
-                            continue;
+                        var playerString = $"{(int)trackingPlayer} ({trackingPlayer.ToString().ToLowerInvariant()})";
 
-                        if (line.EndsWith($"VCAI: Player {playerString} lost. It's me. What a disappointment! :("))
-                            return false;
+                        using (var reader = new StreamReader(log))
+                        {
+                            while (!reader.EndOfStream)
+                            {
+                                var line = reader.ReadLine();
 
-                        if (line.EndsWith($"VCAI: Player {playerString} won. I won! Incredible!"))
-                            return true;
+                                if (string.IsNullOrEmpty(line))
+                                    continue;
+
+                                if (line.EndsWith($"VCAI: Player {playerString} lost. It's me. What a disappointment! :("))
+                                    return false;
+
+                                if (line.EndsWith($"VCAI: Player {playerString} won. I won! Incredible!"))
+                                    return true;
+                            }
+                        }
                     }
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
                 }
             }
 
