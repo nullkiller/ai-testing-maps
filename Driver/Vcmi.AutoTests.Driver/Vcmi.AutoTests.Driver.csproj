@@ -9,4 +9,8 @@
     <OutputPath>D:\vcmi\build\ai-tests\Driver\bin\</OutputPath>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.7.82" />
+  </ItemGroup>
+
 </Project>

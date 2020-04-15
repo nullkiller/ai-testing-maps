@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Vcmi.AutoTests.Driver": {
+      "commandName": "Project",
+      "commandLineArgs": "--VcmiRootDir \"d:/vcmi/build/bin/RelWithDebInfo\" --SavesDir \"C:/Users/andri/Documents/My Games/vcmi\""
+    }
+  }
+}
