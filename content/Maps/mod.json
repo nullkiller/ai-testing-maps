@@ -1,0 +1,21 @@
+{
+    "name" : "VCMI maps for AI testing",
+    "description" : "Following maps can be used for automatic testing of VCAI or any other adventure AI implementation in VCMI. Check README.md file for detailed documentation.",
+    "author" : "SXX",
+    "licenseName" : "Creative Commons Attribution-ShareAlike",
+    "licenseURL" : "https://creativecommons.org/licenses/by-sa/4.0/",
+    "contact" : "https://forum.vcmi.eu/t/map-pack-for-automated-ai-testing/4566",
+    "version" : "1.0.0",
+    "modType" : "Test",
+    "changelog" :
+    {
+        "1.0.0" : [ "Initial public release"]
+    },
+	"filesystem":
+	{
+		"MAPS/":
+		[
+			{"type" : "dir",  "path" : "/ai-testing-maps"}
+		]
+	}
+}
