@@ -19,7 +19,8 @@
 			{"type" : "dir",  "path" : "/Priority"},
 			{"type" : "dir",  "path" : "/GatherArmy"},
 			{"type" : "dir",  "path" : "/Clusterization"},
-			{"type" : "dir",  "path" : "/Startup"}
+			{"type" : "dir",  "path" : "/Startup"},
+			{"type" : "dir",  "path" : "/Defence"}
 		]
 	}
 }

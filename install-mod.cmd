@@ -1,0 +1,1 @@
+xcopy Maps\* ..\build\bin\RelWithDebInfo\Mods\Maps /S /I /Y /Q

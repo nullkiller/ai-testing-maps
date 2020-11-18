@@ -1,1 +1,1 @@
-rmdir ..\bin\RelWithDebInfo\Mods\Maps /S/Q
+rmdir ..\build\bin\RelWithDebInfo\Mods\Maps /S/Q
