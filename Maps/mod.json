@@ -20,7 +20,8 @@
 			{"type" : "dir",  "path" : "/GatherArmy"},
 			{"type" : "dir",  "path" : "/Clusterization"},
 			{"type" : "dir",  "path" : "/Startup"},
-			{"type" : "dir",  "path" : "/Defence"}
+			{"type" : "dir",  "path" : "/Defence"},
+			{"type" : "dir",  "path" : "/Battle"}
 		]
 	}
 }
